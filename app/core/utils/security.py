@@ -115,7 +115,14 @@ class SecurityValidator:
         if not SecurityValidator._is_safe_hostname(hostname):
             raise ValueError(f"Unsafe hostname: {hostname}")
 
-        username = parsed.username or "postgres"
+        # config.py builds DATABASE_URL with quote_plus-encoded credentials;
+        # urlparse does not decode userinfo, so decode before handing to
+        # pg_dump/psql via PGPASSWORD.
+        username = (
+            urllib.parse.unquote_plus(parsed.username)
+            if parsed.username
+            else "postgres"
+        )
         if not SecurityValidator._is_safe_identifier(username):
             raise ValueError(f"Unsafe username: {username}")
 
@@ -140,7 +147,9 @@ class SecurityValidator:
             "hostname": hostname,
             "port": str(port),
             "username": username,
-            "password": parsed.password or "",
+            "password": (
+                urllib.parse.unquote_plus(parsed.password) if parsed.password else ""
+            ),
             "database": database,
             "url": database_url,
         }
